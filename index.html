@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoreDig - 3D Planet Core Miner</title>
+  <link rel="stylesheet" href="./src/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;800&family=Fredoka:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen">
+      <div class="loading-content">
+        <h1 class="loading-logo">⛏️ COREDIG ☀️</h1>
+        <p class="loading-sub">Deep Planetary Expedition Simulator</p>
+        
+        <div class="loading-bar-track">
+          <div class="loading-bar-fill" id="loading-bar-fill" style="width: 0%;"></div>
+        </div>
+
+        <div class="loading-status" id="loading-status-text">Scanning Planetary Crust...</div>
+      </div>
+    </div>
+
+    <!-- Crosshair with dynamic hit tick -->
+    <div id="crosshair">
+      <div class="cross-dot"></div>
+      <div class="hit-indicator" id="hit-indicator"></div>
+    </div>
+
+    <!-- Top Sleek Glassmorphic HUD -->
+    <div id="hud-top">
+      <div class="hud-card cash-card">
+        <span class="hud-icon">💰</span>
+        <div class="hud-info">
+          <span class="hud-label">CREDITS</span>
+          <span class="hud-val" id="cash-val">$0</span>
+        </div>
+      </div>
+
+      <div class="hud-card cores-card">
+        <span class="hud-icon">🌟</span>
+        <div class="hud-info">
+          <span class="hud-label">PLANET CORES</span>
+          <span class="hud-val" id="cores-val">0</span>
+        </div>
+      </div>
+
+      <div class="hud-card depth-card">
+        <span class="hud-icon">🧭</span>
+        <div class="hud-info">
+          <span class="hud-label">DEPTH</span>
+          <span class="hud-val" id="depth-val">0m</span>
+        </div>
+      </div>
+
+      <!-- Day / Night Cycle Widget -->
+      <div class="hud-card time-card" id="time-card">
+        <span class="hud-icon" id="time-icon">☀️</span>
+        <div class="hud-info">
+          <span class="hud-label" id="day-lbl">DAY 1</span>
+          <span class="hud-val" id="clock-val">10:00 AM</span>
+        </div>
+      </div>
+
+      <!-- Settings Button -->
+      <button class="hud-card settings-btn" id="open-settings-btn" title="Game Settings & Controls">
+        <span class="hud-icon">⚙️</span>
+        <span class="hud-label">SETTINGS</span>
+      </button>
+    </div>
+
+    <!-- Boss Health Bar -->
+    <div id="boss-bar-container" class="hidden">
+      <div class="boss-title">
+        <span class="sun-icon">☀️</span> THE PLANET CORE <span class="sun-icon">☀️</span>
+      </div>
+      <div class="boss-bar-track">
+        <div class="boss-bar-fill" id="boss-hp-fill" style="width: 100%;"></div>
+        <span class="boss-hp-text" id="boss-hp-text">50,000 / 50,000 HP</span>
+      </div>
+    </div>
+
+    <!-- Dynamic Surface Shop Interaction Banner -->
+    <div id="surface-depot-banner" class="hidden">
+      <div class="depot-box">
+        <h3 id="depot-banner-title">🏪 SURFACE UPGRADE DEPOT</h3>
+        <p>Press <span class="k">E</span> to Access Station</p>
+      </div>
+    </div>
+
+    <!-- Backpack Full Alert -->
+    <div id="backpack-full-alert" class="hidden">
+      ⚠️ BACKPACK FULL! Press [B] for Backpack or [R] to Recall & Sell!
+    </div>
+
+    <!-- Screen Flash Overlay -->
+    <div id="screen-flash"></div>
+
+    <!-- BOTTOM HOTBAR GUI (Tool on far left + 8 quick inventory slots) -->
+    <div id="bottom-hotbar">
+      <!-- Slot 0: Equipped Tool -->
+      <div class="hotbar-slot tool-slot" id="hotbar-tool-slot" title="Equipped Mining Tool">
+        <div class="slot-badge">TOOL</div>
+        <div class="hotbar-icon" id="hotbar-tool-icon">⛏️</div>
+        <div class="hotbar-name" id="hotbar-tool-name">Wooden Spade</div>
+      </div>
+
+      <div class="hotbar-divider"></div>
+
+      <!-- Quick Inventory Slots 1 to 8 -->
+      <div class="hotbar-inv-slots" id="hotbar-slots-container">
+        <!-- 8 slots populated dynamically -->
+      </div>
+
+      <!-- Backpack Toggle Button -->
+      <button class="hotbar-backpack-btn" id="hotbar-backpack-btn" title="Open Full Backpack (Press B)">
+        🎒 <span>[B]</span>
+      </button>
+    </div>
+
+    <!-- MODAL: FULL BACKPACK & GEAR LOADOUT (Press B) -->
+    <div id="backpack-modal" class="modal hidden">
+      <div class="modal-content backpack-modal-content">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <h2>🎒 CARGO BACKPACK & GEAR LOADOUT</h2>
+            <span class="modal-header-sub" id="modal-backpack-cap">Capacity: 0 / 24</span>
+          </div>
+          <button class="close-btn" id="close-backpack-btn">✕</button>
+        </div>
+
+        <div class="backpack-layout">
+          <!-- LEFT: Player Gear Loadout -->
+          <div class="gear-section">
+            <h3>⚙️ EQUIPPED GEAR</h3>
+            <div class="gear-slots-grid">
+              <div class="gear-card active">
+                <div class="gear-icon" id="gear-tool-icon">⛏️</div>
+                <div class="gear-info">
+                  <div class="gear-title" id="gear-tool-name">Wooden Spade</div>
+                  <div class="gear-stats" id="gear-tool-stats">Dmg: 2 | Spd: 1.0x</div>
+                </div>
+              </div>
+
+              <div class="gear-card">
+                <div class="gear-icon">💡</div>
+                <div class="gear-info">
+                  <div class="gear-title">Headlamp</div>
+                  <div class="gear-stats" id="gear-lamp-stats">Level 1 (Standard)</div>
+                </div>
+              </div>
+
+              <div class="gear-card">
+                <div class="gear-icon">🦘</div>
+                <div class="gear-info">
+                  <div class="gear-title">Piston Boots</div>
+                  <div class="gear-stats" id="gear-jump-stats">Level 1 (Standard)</div>
+                </div>
+              </div>
+
+              <div class="gear-card">
+                <div class="gear-icon">👟</div>
+                <div class="gear-info">
+                  <div class="gear-title">Sprint Exosuit</div>
+                  <div class="gear-stats" id="gear-speed-stats">Level 1 (Standard)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="gear-summary-box">
+              <div class="summary-line">
+                <span>Total Cargo Value:</span>
+                <span class="val-green" id="gear-cargo-val">$0</span>
+              </div>
+              <button id="backpack-sell-btn" class="action-btn sell-btn">
+                💰 SELL ALL ORES
+              </button>
+            </div>
+          </div>
+
+          <!-- RIGHT: 24 Inventory Slots (6x4 Grid) -->
+          <div class="inventory-section">
+            <h3>📦 INVENTORY (24 SLOTS)</h3>
+            <div class="inventory-24-grid" id="inventory-24-grid">
+              <!-- 24 slots generated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: SETTINGS PANEL -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content settings-modal-content">
+        <div class="modal-header">
+          <h2>⚙️ GAME SETTINGS & CONTROLS</h2>
+          <button class="close-btn" id="close-settings-btn">✕</button>
+        </div>
+
+        <div class="settings-body">
+          <!-- Controls Reference -->
+          <div class="settings-section">
+            <h3>🎮 CONTROLS & KEYBINDS</h3>
+            <div class="controls-list-grid">
+              <div class="ctrl-row"><span class="k">W</span><span class="k">A</span><span class="k">S</span><span class="k">D</span> Move Character</div>
+              <div class="ctrl-row"><span class="k">SPACE</span> Jump / Vault</div>
+              <div class="ctrl-row"><span class="k">L-CLICK</span> Mine Blocks / Attack Sun Core</div>
+              <div class="ctrl-row"><span class="k">V</span> Toggle 1st / 3rd Person View</div>
+              <div class="ctrl-row"><span class="k">B</span> Open Full Backpack & Gear</div>
+              <div class="ctrl-row"><span class="k">F</span> Toggle Mining Headlamp</div>
+              <div class="ctrl-row"><span class="k">R</span> Surface Recall Beacon (Teleport)</div>
+              <div class="ctrl-row"><span class="k">E</span> Open Surface Outpost Shops</div>
+              <div class="ctrl-row"><span class="k">ESC</span> Release Mouse Pointer</div>
+            </div>
+          </div>
+
+          <!-- Settings Sliders -->
+          <div class="settings-section">
+            <h3>🛠️ PREFERENCES</h3>
+            <div class="settings-options">
+              <div class="opt-row">
+                <label for="sens-slider">Mouse Sensitivity (<span id="sens-val">1.0x</span>)</label>
+                <input type="range" id="sens-slider" min="0.5" max="3.0" step="0.1" value="1.0" />
+              </div>
+
+              <div class="opt-row">
+                <label for="fov-slider">Field of View (<span id="fov-val">70°</span>)</label>
+                <input type="range" id="fov-slider" min="60" max="95" step="1" value="70" />
+              </div>
+
+              <div class="opt-row">
+                <label>Sound Effects</label>
+                <button id="toggle-mute-btn" class="sub-btn">🔊 Sound: ON</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Management -->
+          <div class="settings-section">
+            <h3>💾 SAVE DATA</h3>
+            <p class="settings-desc">Game progress automatically saves to LocalStorage.</p>
+            <button id="reset-save-btn" class="danger-btn">🗑️ RESET SAVE DATA</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Surface Outpost Shop / Depot -->
+    <div id="shop-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="shop-modal-heading">⛏️ SURFACE UPGRADE DEPOT</h2>
+          <button class="close-btn" id="close-shop-btn">✕</button>
+        </div>
+
+        <div class="depot-actions">
+          <button id="sell-all-btn" class="action-btn sell-btn">
+            💰 SELL ALL ORES (<span id="sell-value-preview">$0</span>)
+          </button>
+        </div>
+
+        <div class="shop-tabs">
+          <button class="tab-btn active" data-tab="tab-tools">🛠️ Tools & Weapons</button>
+          <button class="tab-btn" data-tab="tab-backpack">🎒 Backpack Upgrades</button>
+          <button class="tab-btn" data-tab="tab-stats">⚡ Player Exosuit</button>
+          <button class="tab-btn" data-tab="tab-tycoon">🏗️ Drone Tech Lab</button>
+          <button class="tab-btn" data-tab="tab-prestige">🌟 Core Forge</button>
+          <button class="tab-btn" data-tab="tab-models">🎨 3D Models</button>
+        </div>
+
+        <div class="tab-pane active" id="tab-tools">
+          <div class="cards-grid" id="tools-grid"></div>
+        </div>
+
+        <div class="tab-pane" id="tab-backpack">
+          <div class="cards-grid" id="backpack-grid"></div>
+        </div>
+
+        <div class="tab-pane" id="tab-stats">
+          <div class="cards-grid" id="stats-grid"></div>
+        </div>
+
+        <div class="tab-pane" id="tab-tycoon">
+          <div class="cards-grid" id="tycoon-grid"></div>
+        </div>
+
+        <div class="tab-pane" id="tab-prestige">
+          <div class="prestige-banner">
+            <h3>🌟 THE CORE FORGE</h3>
+            <p>Spend Planet Cores harvested from the Sun Core for permanent transcendent multipliers!</p>
+          </div>
+          <div class="cards-grid" id="prestige-grid"></div>
+        </div>
+
+        <!-- 3D MODEL SWAPPER TAB -->
+        <div class="tab-pane" id="tab-models">
+          <div class="models-intro">
+            <h3>Custom 3D Model Uploader (.glb / .gltf)</h3>
+            <p>Upload custom 3D models below. The game will automatically re-center, scale, and swap them live into the world:</p>
+          </div>
+          <div class="model-drop-grid">
+            <div class="model-slot">
+              <h4>⛏️ Tool / Shovel / Pickaxe</h4>
+              <p class="slot-desc">Current: <span id="tool-model-status">Stylized Pickaxe</span></p>
+              <label class="upload-btn">
+                Choose .glb File
+                <input type="file" id="upload-tool-file" accept=".glb,.gltf" />
+              </label>
+            </div>
+
+            <div class="model-slot">
+              <h4>🧑 Player Miner Avatar</h4>
+              <p class="slot-desc">Current: <span id="player-model-status">Cartoon Astronaut</span></p>
+              <label class="upload-btn">
+                Choose .glb File
+                <input type="file" id="upload-player-file" accept=".glb,.gltf" />
+              </label>
+            </div>
+
+            <div class="model-slot">
+              <h4>☀️ Planet Core</h4>
+              <p class="slot-desc">Current: <span id="core-model-status">Procedural Sun Mesh</span></p>
+              <label class="upload-btn">
+                Choose .glb File
+                <input type="file" id="upload-core-file" accept=".glb,.gltf" />
+              </label>
+            </div>
+
+            <div class="model-slot">
+              <h4>🤖 Auto-Miner Drone</h4>
+              <p class="slot-desc">Current: <span id="drone-model-status">Hover Drone</span></p>
+              <label class="upload-btn">
+                Choose .glb File
+                <input type="file" id="upload-drone-file" accept=".glb,.gltf" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start / Click-to-Play Overlay -->
+    <div id="blocker" class="hidden">
+      <div id="instructions">
+        <h1 class="game-logo">⛏️ COREDIG ☀️</h1>
+        <p class="tagline">Dig deep through 1,000m+ of planetary strata and conquer the glowing Sun Core!</p>
+
+        <div class="feature-pills">
+          <span>🎮 1st & 3rd Person (Press V)</span>
+          <span>🎒 Full 24-Slot Backpack & Gear (Press B)</span>
+          <span>☀️ Day & Night Cycle</span>
+          <span>🏢 Mining Camp Outpost & Multi-Shops</span>
+          <span>🎨 Drop-In 3D Model Swapper</span>
+        </div>
+
+        <button id="play-btn">CLICK TO PLAY</button>
+        <p class="sub-hint">Clicking locks the mouse cursor for 3D exploration. Press ESC anytime to release.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
